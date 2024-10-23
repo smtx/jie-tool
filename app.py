@@ -14,50 +14,36 @@ def calculate_total_pages(total_count, page_total_count):
     return pages_needed
 
 
+def initialize_session_state():
+    """Initializes session state variables."""
+    default_state = {
+        'api_username': st.secrets.get("api", {}).get("user", None),
+        'api_password': st.secrets.get("api", {}).get("password", None),
+        'selected_region': st.secrets.get("api", {}).get("region", "US Region"),
+        'api_domain': API_DOMAINS[st.secrets.get("api", {}).get("region", "US Region")],
+        'refresh_roles': True,
+        'df': None,
+        'rows': [],
+        'token': None,
+        'untitled_roles': [],
+        'ef_api': None
+    }
+    for key, value in default_state.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-# Initialize session state for API credentials and popup visibility
-if 'api_username' not in st.session_state:
-    st.session_state['api_username'] = st.secrets.get("api", {}).get("user", None)
-if 'api_password' not in st.session_state:
-    st.session_state['api_password'] = st.secrets.get("api", {}).get("password", None)
-if 'selected_region' not in st.session_state:
-    st.session_state['selected_region'] = "US Region"
-if 'api_domain' not in st.session_state:
-    st.session_state['api_domain'] = API_DOMAINS['US Region']
-if 'refresh_roles' not in st.session_state:
-    st.session_state['refresh_roles'] = True
-if 'df' not in st.session_state:
-    st.session_state['df'] = None
-if 'rows' not in st.session_state:
-    st.session_state['rows'] = []
-if 'token' not in st.session_state:
-    st.session_state['token'] = None
-if 'untitled_roles' not in st.session_state:
-    st.session_state['untitled_roles'] = []
-if 'ef_api' not in st.session_state:
     if st.session_state['api_username'] and st.session_state['api_password']:
-        st.session_state['ef_api'] = EightfoldAPI(st.session_state['api_username'], st.session_state['api_password'], st.session_state['api_domain'], AUTHORIZATION_HEADERS[st.session_state['selected_region']])
-    else:
-        st.session_state['ef_api'] = None
+        st.session_state['ef_api'] = EightfoldAPI(
+            st.session_state['api_username'],
+            st.session_state['api_password'],
+            st.session_state['api_domain'],
+            AUTHORIZATION_HEADERS[st.session_state['selected_region']]
+        )
 
-@st.dialog("API Credentials")
-def api_credentials():
-    st.write("### API Credentials Setup")
+initialize_session_state()
 
-    # Selectbox for choosing the region with the selected region from the session state
-    selected_region = st.selectbox(
-        "Select Eightfold Region",
-        options=list(AUTHORIZATION_HEADERS.keys()),
-        index=list(AUTHORIZATION_HEADERS.keys()).index(st.session_state['selected_region']),
-        help="Choose the region that corresponds to your Eightfold instance."
-    )
-
-    # Update the API domain based on the selected region dynamically
-    st.session_state['api_domain'] = API_DOMAINS[selected_region]
-    st.session_state['selected_region'] = selected_region
-    
-
-
+@st.dialog("API Credentials Setup")
+def api_credentials():    
     # Form for the API credentials
     with st.form(key='api_credentials_form', border=False):
         # Pre-fill the fields with existing session state values, if available
@@ -70,7 +56,15 @@ def api_credentials():
             value=st.session_state['api_password'] or "",
             type="password",
         )
-        
+
+        # Selectbox for choosing the region with the selected region from the session state
+        selected_region = st.selectbox(
+            "Select Eightfold Region",
+            options=list(AUTHORIZATION_HEADERS.keys()),
+            index=list(AUTHORIZATION_HEADERS.keys()).index(st.session_state['selected_region']),
+            help="Choose the region that corresponds to your Eightfold instance."
+        )
+        st.write("")
         # Form submission buttons
         settings_col, submit_col = st.columns([2, 1])
         with submit_col:
