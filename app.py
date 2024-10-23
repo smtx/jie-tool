@@ -165,9 +165,6 @@ if st.session_state['ef_api'] and st.session_state['refresh_roles']:
             my_bar.progress(percentage)
             append_roles(st.session_state['ef_api'].get_roles(page*100, 100))
         my_bar.empty()
-        if st.session_state['untitled_roles']:
-            with st.expander(f"Found {len(st.session_state['untitled_roles'])} untitled role{'s' if len(st.session_state['untitled_roles']) != 1 else ''}."):
-                st.write(st.session_state['untitled_roles'])
 
     if st.session_state['refresh_roles']:
         st.session_state['df'] = pd.DataFrame(st.session_state['rows'])
@@ -204,6 +201,10 @@ if st.session_state['rows']:
 
     # Layout setup with columns for button placement
     left_col, button_col = st.columns([6, 3])
+    with left_col:
+        if st.session_state['untitled_roles']:
+            with st.expander(f"Found {len(st.session_state['untitled_roles'])} untitled role{'s' if len(st.session_state['untitled_roles']) != 1 else ''}."):
+                st.write(st.session_state['untitled_roles'])
     with button_col:
         selected_count = len(roleTable.selection["rows"])
         button_label = f"Delete {selected_count} Selected Role{'s' if selected_count != 1 else ''}"
