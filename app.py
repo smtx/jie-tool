@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from eightfold_api import EightfoldAPI
 import math
+from constants import API_DOMAINS, AUTHORIZATION_HEADERS
 
 def calculate_total_pages(total_count, page_total_count):
     # Assume page size is inferred from pageTotalCount attribute
@@ -12,25 +13,7 @@ def calculate_total_pages(total_count, page_total_count):
     pages_needed = math.ceil(total_count / page_total_count)
     return pages_needed
 
-# API domains for different regions
-API_DOMAINS = {
-    "US Region": "apiv2.eightfold.ai",
-    "EU Region": "apiv2.eightfold-eu.ai",
-    "Govt Accounts": "apiv2.eightfold-gov.ai",
-    "CA Region": "apiv2.eightfold-ca.ai",
-    "ME Region": "apiv2.eightfold-me.ai",
-    "WU Region": "apiv2.eightfold-wu.ai"
-}
 
-# Authorization headers for different Eightfold regions
-AUTHORIZATION_HEADERS = {
-    "US Region": "MU92YTg4T1JyMlFBVktEZG8wc1dycTdEOnBOY1NoMno1RlFBMTZ6V2QwN3cyeUFvc3QwTU05MmZmaXFFRDM4ZzJ4SFVyMGRDaw==",
-    "EU Region": "Vmd6RlF4YklLUnI2d0tNZWRpdVZTOFhJOmdiM1pjYzUyUzNIRmhsNzd5c2VmNTgyOG5jVk05djl1dGVtQ2tmNVEyMnRpV1VJVQ==",
-    "Govt Accounts": "UnRRM2NPa1doMlVtVHBHSFlobnl6YnhSOjU1UXcxYXZKclI3VjNRdUMxN2VwSWFadDFEd2hmaG5xempieFE4QlVRMUtFZzFzRg==",
-    "CA Region": "Q3hTYzBvaVZuZ2llOFdQMXRsdkxSMlg3OlBJTjVndmRaUVRvc0p3d2Q4SFE1djJMcWNCbVR1d0kybmU5SEU2bFJLT0hLaVNGUw==",
-    "ME Region": "NHhsY3BWaVRxa2dPMEd6NENCZXFjb3ZWOkI4MEVGT0J3NGx3M0lGbWd2ZUtzU0tMMTZvQ2IxaUM5dUhkcTFEQjVqZ3cwdzZ2Sg==",
-    "WU Region": "YVRmRzdwVkJKRUVzTGZBY2dITENHUFdLOmMzbkRaM3czRGNmcExLUko5c0JmUFJUME1WSGxqVU1wbTNsRHBwUUU1YVVRYmc3Mw=="
-}
 
 # Initialize session state for API credentials and popup visibility
 if 'api_username' not in st.session_state:
@@ -132,7 +115,7 @@ def delete_roles(selected_rows):
 def append_roles(roles):
     for role in roles["data"]:
         role_id = role.get("id")
-        title = role.get("title", "Untitled Role")
+        title = role.get("title")
 
         skills = role.get("skillProficiencies") or []
         skill_names = [skill.get("name", "Unknown") for skill in skills][:25]
@@ -161,7 +144,18 @@ st.logo(
 with header_col:
     if st.session_state['ef_api']:
         st.write("connected as " + st.session_state['ef_api'].username)
-    st.write("# JIE/Talent Design Tool")
+        st.write("# JIE/Talent Design Tool")
+        if st.button('reload roles', icon=":material/refresh:", disabled=not st.session_state['ef_api']):
+            st.session_state['rows'] = []
+            st.session_state['refresh_roles'] = True
+            st.rerun()
+    else:
+        api_credentials()
+
+with settings_col:
+    st.write("")
+    if st.button("API Credentials"):
+        api_credentials()
 
 
 if st.session_state['ef_api'] and st.session_state['refresh_roles']:
@@ -188,17 +182,12 @@ if st.session_state['ef_api'] and st.session_state['refresh_roles']:
     with st.container():
         leftc, rightc = st.columns(2)
         with leftc:
-            st.write("### JIE Roles")
-        with rightc:
-            if st.button('reload roles', icon=":material/refresh:"):
-                st.session_state['rows'] = []
-                st.session_state['refresh_roles'] = True
-                st.rerun()
-                
+            st.write("### JIE Roles")                
 
     total_roles = len(st.session_state['rows'])
     st.write(f"Found {total_roles} role{'s' if total_roles != 1 else ''}.")
 
+if st.session_state['rows']:
     roleTable = st.dataframe(
         st.session_state['df'],
         key="data",
@@ -232,8 +221,4 @@ if st.session_state['ef_api'] and st.session_state['refresh_roles']:
             ):
                 delete_roles(roleTable.selection['rows'])
 
-with settings_col:
-    st.write("")
-    if st.button("API Credentials"):
-        api_credentials()
 
