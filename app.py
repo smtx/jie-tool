@@ -24,6 +24,7 @@ def initialize_session_state():
         'refresh_roles': True,
         'df': None,
         'rows': [],
+        'role_ids': [],
         'token': None,
         'untitled_roles': [],
         'ef_api': None
@@ -87,22 +88,22 @@ def api_credentials():
             st.rerun()
 
 @st.dialog("Are you sure?")
-def delete_roles(selected_rows):
-    rows = st.session_state['rows']
+def delete_roles(role_ids):
     st.markdown("### 🫣💀⚠️")
-    st.write(f"You are about to delete {len(selected_rows)} role{'s' if len(selected_rows) != 1 else ''}.")
+    st.write(f"You are about to delete {len(role_ids)} role{'s' if len(role_ids) != 1 else ''}.")
     _, button_col = st.columns([3, 2])
     with button_col:
         if st.button("Yes, Delete them", type="primary"):
             progress_text = "Deleting Roles. Please wait."
             my_bar = st.progress(0, text=progress_text)
-            for idx, id in enumerate(selected_rows):
-                st.session_state['ef_api'].delete_role(rows[id]['ID'])
+            for idx, id in enumerate(role_ids):
+                st.session_state['ef_api'].delete_role(id)
 
-                percentage = int(100 * idx / len(selected_rows))
+                percentage = int(100 * idx / len(role_ids))
                 my_bar.progress(percentage)
 
             st.session_state['refresh_roles'] = True
+            st.session_state['role_ids'] = []
             st.session_state['rows'] = []
             st.rerun()
 
@@ -141,6 +142,7 @@ with header_col:
         st.write("# JIE/Talent Design Tool")
         if st.button('reload roles', icon=":material/refresh:", disabled=not st.session_state['ef_api']):
             st.session_state['rows'] = []
+            st.session_state['role_ids'] = []
             st.session_state['refresh_roles'] = True
             st.rerun()
     else:
@@ -159,6 +161,9 @@ if st.session_state['ef_api'] and st.session_state['refresh_roles']:
         append_roles(roles)
         
         total_pages = calculate_total_pages(roles['meta']['totalCount'], roles['meta']['pageTotalCount'])-1
+        
+        # Limit total_pages to a maximum of 10
+        total_pages = min(total_pages, 10)
 
         for page in range(1,total_pages):
             percentage = int(100 * page / total_pages)
@@ -175,45 +180,74 @@ if st.session_state['ef_api'] and st.session_state['refresh_roles']:
         with leftc:
             st.write("### JIE Roles")                
 
-    total_roles = len(st.session_state['rows'])
+uploaded_file = st.file_uploader("Upload CSV File with Role IDs", type="csv")
+total_roles = len(st.session_state['rows'])
+
+if uploaded_file is not None:
+    # Get role IDs from uploaded file
+    st.session_state['role_ids'] = []
+
+    # Read the CSV without a header, assuming IDs are in a single line
+    role_ids_df = pd.read_csv(uploaded_file, header=None)
+    
+    # Extract the role IDs into a list
+    # Flatten the DataFrame to get a single list of values
+    st.session_state['role_ids'] = role_ids_df.values.flatten().tolist()
+
+    uploaded_file.close()
+
+if st.session_state['role_ids']:
+    st.write(st.session_state['role_ids'])
+    totalRoles = len(st.session_state['role_ids'])
+    st.write(f"Found {totalRoles} role{'s' if totalRoles != 1 else ''}.")
+    button_label = f"Delete {totalRoles} Selected Role{'s' if totalRoles != 1 else ''}"
+    if st.button(
+        button_label,
+        use_container_width=True,
+        icon="🔥",
+    ):
+        delete_roles(st.session_state['role_ids'])
+else:
     st.write(f"Found {total_roles} role{'s' if total_roles != 1 else ''}.")
+    if st.session_state['rows']:
+        roleTable = st.dataframe(
+            st.session_state['df'],
+            key="data",
+            height=700,
+            column_config={
+                "Skills": st.column_config.ListColumn(
+                    "Skills",
+                    help="Skills configured for this role.",
+                    width="large",
+                ),
+                "Locations": st.column_config.ListColumn(
+                    "Locations",
+                    help="Locations configured for this role.",
+                    width="small",
+                )
+            },
+            on_select="rerun",
+            selection_mode=["multi-row"],
+        )
 
-if st.session_state['rows']:
-    roleTable = st.dataframe(
-        st.session_state['df'],
-        key="data",
-        height=700,
-        column_config={
-            "Skills": st.column_config.ListColumn(
-                "Skills",
-                help="Skills configured for this role.",
-                width="large",
-            ),
-            "Locations": st.column_config.ListColumn(
-                "Locations",
-                help="Locations configured for this role.",
-                width="small",
-            )
-        },
-        on_select="rerun",
-        selection_mode=["multi-row"],
-    )
-
-    # Layout setup with columns for button placement
-    left_col, button_col = st.columns([6, 3])
-    with left_col:
-        if st.session_state['untitled_roles']:
-            with st.expander(f"Found {len(st.session_state['untitled_roles'])} untitled role{'s' if len(st.session_state['untitled_roles']) != 1 else ''}."):
-                st.write(st.session_state['untitled_roles'])
-    with button_col:
-        selected_count = len(roleTable.selection["rows"])
-        button_label = f"Delete {selected_count} Selected Role{'s' if selected_count != 1 else ''}"
-        if selected_count > 0:
-            if st.button(
-                button_label,
-                use_container_width=True,
-                icon="🔥",
-            ):
-                delete_roles(roleTable.selection['rows'])
+        # Layout setup with columns for button placement
+        left_col, button_col = st.columns([6, 3])
+        with left_col:
+            if st.session_state['untitled_roles']:
+                with st.expander(f"Found {len(st.session_state['untitled_roles'])} untitled role{'s' if len(st.session_state['untitled_roles']) != 1 else ''}."):
+                    st.write(st.session_state['untitled_roles'])
+        with button_col:
+            selected_indices = roleTable.selection["rows"]
+            selected_count = len(roleTable.selection["rows"])
+            button_label = f"Delete {selected_count} Selected Role{'s' if selected_count != 1 else ''}"
+            if selected_count > 0:
+                if st.button(
+                    button_label,
+                    use_container_width=True,
+                    icon="🔥",
+                ):
+                    # Get role_ids from selected indices
+                    role_ids = [st.session_state['rows'][idx]['ID'] for idx in selected_indices]
+                    delete_roles(role_ids)
 
 
