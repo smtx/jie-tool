@@ -27,7 +27,8 @@ def initialize_session_state():
         'role_ids': [],
         'token': None,
         'untitled_roles': [],
-        'ef_api': None
+        'ef_api': None,
+        'api_credentials_open': False
     }
     for key, value in default_state.items():
         if key not in st.session_state:
@@ -145,8 +146,9 @@ with header_col:
             st.session_state['role_ids'] = []
             st.session_state['refresh_roles'] = True
             st.rerun()
-    else:
+    elif not st.session_state['api_credentials_open'] and not st.session_state['api_username']:
         api_credentials()
+        st.session_state['api_credentials_open'] = True
 
 with settings_col:
     st.write("")
