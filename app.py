@@ -182,21 +182,22 @@ if st.session_state['ef_api'] and st.session_state['refresh_roles']:
         with leftc:
             st.write("### JIE Roles")                
 
-uploaded_file = st.file_uploader("Upload CSV File with Role IDs", type="csv")
+if st.session_state['ef_api']:
+    uploaded_file = st.file_uploader("Upload CSV File with Role IDs", type="csv")
+    if uploaded_file is not None:
+        # Get role IDs from uploaded file
+        st.session_state['role_ids'] = []
+
+        # Read the CSV without a header, assuming IDs are in a single line
+        role_ids_df = pd.read_csv(uploaded_file, header=None)
+        
+        # Extract the role IDs into a list
+        # Flatten the DataFrame to get a single list of values
+        st.session_state['role_ids'] = role_ids_df.values.flatten().tolist()
+
+        uploaded_file.close()
+
 total_roles = len(st.session_state['rows'])
-
-if uploaded_file is not None:
-    # Get role IDs from uploaded file
-    st.session_state['role_ids'] = []
-
-    # Read the CSV without a header, assuming IDs are in a single line
-    role_ids_df = pd.read_csv(uploaded_file, header=None)
-    
-    # Extract the role IDs into a list
-    # Flatten the DataFrame to get a single list of values
-    st.session_state['role_ids'] = role_ids_df.values.flatten().tolist()
-
-    uploaded_file.close()
 
 if st.session_state['role_ids']:
     st.write(st.session_state['role_ids'])
@@ -215,7 +216,6 @@ else:
         roleTable = st.dataframe(
             st.session_state['df'],
             key="data",
-            height=700,
             column_config={
                 "Skills": st.column_config.ListColumn(
                     "Skills",
